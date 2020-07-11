@@ -4,22 +4,15 @@ import _ from 'lodash';
 import * as am4core from "@amcharts/amcharts4/core";
 import * as am4charts from "@amcharts/amcharts4/charts";
 import am4themes_animated from "@amcharts/amcharts4/themes/animated";
+import { AmChartsLogo } from '@amcharts/amcharts4/.internal/core/elements/AmChartsLogo';
 
 const URL = 'ws://localhost:3030';
 
 export default class Data extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            // chart: ,
-            res: [],
-            ws: new WebSocket(URL)
-        }
-    }
-
+    ws = new WebSocket(URL);
 
     componentDidMount() {
-        this.state.ws.onclose = () => {
+        this.ws.onclose = () => {
             // automatically try to reconnect on connection loss
             this.setState({
                 ws: new WebSocket(URL),
@@ -31,23 +24,23 @@ export default class Data extends Component {
         });
     }
 
-    repeatEvery(func) {
-        const interval = 60 * 1000;
+    // repeatEvery(func) {
+    //     const interval = 60 * 1000;
 
-        const now = new Date();
-        now.setSeconds(now.getSeconds() - 5);
-        const delay = interval - now % interval;
+    //     const now = new Date();
+    //     now.setSeconds(now.getSeconds());
+    //     const delay = interval - now % interval;
 
-        function start() {
-            func();
-            setInterval(func, interval);
-        }
-        setTimeout(start, delay);
-    }
+    //     function start() {
+    //         func();
+    //         setInterval(func, interval);
+    //     }
+    //     setTimeout(start, delay);
+    // }
 
     graph = giveData => {
         am4core.useTheme(am4themes_animated);
-        // Themes end
+
         const chart = am4core.create("chartdiv", am4charts.XYChart)
         am4core.ready(() => {
             chart.paddingRight = 20;
@@ -60,11 +53,11 @@ export default class Data extends Component {
             valueAxis.tooltip.disabled = true;
 
             var series = chart.series.push(new am4charts.CandlestickSeries());
-            series.dropFromOpenState.properties.fill = am4core.color("#ff2211");
-            series.dropFromOpenState.properties.stroke = am4core.color("#ff2211");
+            series.dropFromOpenState.properties.fill = am4core.color("#0022ff");
+            series.dropFromOpenState.properties.stroke = am4core.color("#0022ff");
 
-            series.riseFromOpenState.properties.fill = am4core.color("#0022ff");
-            series.riseFromOpenState.properties.stroke = am4core.color("#0022ff");
+            series.riseFromOpenState.properties.fill = am4core.color("#ff2211");
+            series.riseFromOpenState.properties.stroke = am4core.color("#ff2211");
             series.dataFields.dateX = "time";
             series.dataFields.valueY = "close";
             series.dataFields.openValueY = "open";
@@ -72,28 +65,25 @@ export default class Data extends Component {
             series.dataFields.highValueY = "high";
             series.simplifiedProcessing = true;
             series.tooltipText = "Open:${openValueY.value}\nLow:${lowValueY.value}\nHigh:${highValueY.value}\nClose:${valueY.value}";
+            // series.zIndex = 1;
 
             chart.cursor = new am4charts.XYCursor();
 
-            // a separate series for scrollbar
             var lineSeries = chart.series.push(new am4charts.LineSeries());
             lineSeries.dataFields.dateX = "time";
             lineSeries.dataFields.valueY = "lastOpenPrice";
-            // need to set on default state, as initially series is "show"
             lineSeries.defaultState.properties.visible = true;
             lineSeries.stroke = am4core.color("#999");
 
             var lineSeriesPlus2 = chart.series.push(new am4charts.LineSeries());
             lineSeriesPlus2.dataFields.dateX = "time";
             lineSeriesPlus2.dataFields.valueY = "lastOpenPricePlus2";
-            // need to set on default state, as initially series is "show"
             lineSeriesPlus2.defaultState.properties.visible = true;
             lineSeriesPlus2.stroke = am4core.color("#f00");
 
             var lineSeriesMinus2 = chart.series.push(new am4charts.LineSeries());
             lineSeriesMinus2.dataFields.dateX = "time";
             lineSeriesMinus2.dataFields.valueY = "lastOpenPriceMinus2";
-            // need to set on default state, as initially series is "show"
             lineSeriesMinus2.defaultState.properties.visible = true;
             lineSeriesMinus2.stroke = am4core.color("#00f");
 
@@ -101,40 +91,88 @@ export default class Data extends Component {
             var currentPrice = chart.series.push(new am4charts.LineSeries());
             currentPrice.dataFields.dateX = "time";
             currentPrice.dataFields.valueY = "currentPrice";
-            // need to set on default state, as initially series is "show"
             currentPrice.defaultState.properties.visible = true;
-            currentPrice.stroke = am4core.color("#900");
-            // currentPrice.name = "Price";
 
-            // var scrollbarX = new am4charts.XYChartScrollbar();
-            // scrollbarX.series.push(lineSeries);
-            // chart.scrollbarX = scrollbarX;
+            var bullet = currentPrice.bullets.push(new am4charts.Bullet());
+            var square = bullet.createChild(am4core.Rectangle);
+            square.height = 15;
+            square.width = 80;
+            square.verticalCenter = "middle";
+
+            var valueLabel = currentPrice.bullets.push(new am4charts.LabelBullet());
+            valueLabel.label.text = "{currentPrice}";
+            valueLabel.label.fontSize = 15;
+            valueLabel.label.fill = am4core.color("#fff");
+            valueLabel.label.horizontalCenter = 'left'
 
             chart.data = giveData;
-            function addData(fetchData) {
-                fetchData().then(fetchedData => {
-                    chart.addData(fetchedData[fetchedData.length - 1]);
-                    chart.data.forEach((item, index) => {
-                        chart.data[index]["lastOpenPricePlus2"] = fetchedData[fetchedData.length - 1]["lastOpenPricePlus2"];
-                        chart.data[index]["lastOpenPriceMinus2"] = fetchedData[fetchedData.length - 1]["lastOpenPriceMinus2"];
-                        chart.data[index]["lastOpenPrice"] = fetchedData[fetchedData.length - 1]["lastOpenPrice"];
-                    });
-                    chart.invalidateRawData();
-                });
-            };
-            async function updateCurrentPrice (price) {
+            // function addData(fetchData) {
+            //     fetchData().then(fetchedData => {
+            //         chart.addData(fetchedData[fetchedData.length - 1]);
+            //         chart.data.forEach((item, index) => {
+            //             chart.data[index]["lastOpenPricePlus2"] = fetchedData[fetchedData.length - 1]["lastOpenPricePlus2"];
+            //             chart.data[index]["lastOpenPriceMinus2"] = fetchedData[fetchedData.length - 1]["lastOpenPriceMinus2"];
+            //             chart.data[index]["lastOpenPrice"] = fetchedData[fetchedData.length - 1]["lastOpenPrice"];
+            //         });
+            //         chart.invalidateRawData();
+            //     });
+            // };
+
+            valueLabel.disabled = true;
+            valueLabel.propertyFields.disabled = "disabled";
+            bullet.disabled = true;
+            bullet.propertyFields.disabled = "disabled";
+            const updateCurrentPrice = async price => {
+                const dataLength = chart.data.length;
+                if (chart.data.length) {
+                    chart.data[0].disabled = false;
+                    var ts = Math.round((new Date()).getTime());
+                    if (this.convertToMinutes(ts) === chart.data[dataLength - 1]["time"]) {
+                        console.log(chart.data[dataLength - 1]["high"]);
+                        if (chart.data[dataLength - 1]["high"] < price)
+                            chart.data[dataLength - 1]["high"] = price;
+                        if (chart.data[dataLength - 1]["low"] > price)
+                            chart.data[dataLength - 1]["low"] = price;
+                        chart.data[dataLength - 1]["close"] = price;
+                        if (chart.data[dataLength - 1]["open"] < price) {
+                            currentPrice.stroke = am4core.color("#c00");
+                            currentPrice.fill = am4core.color("#c00");
+
+                        } else {
+                            currentPrice.stroke = am4core.color("#00c");
+                            currentPrice.fill = am4core.color("#00c");
+                        }
+                    } else {
+                        const newData = {
+                            time: this.convertToMinutes(ts),
+                            open: price,
+                            high: price,
+                            low: price,
+                            close: price,
+                            lastOpenPrice: price,
+                            lastOpenPricePlus2: price + 2,
+                            lastOpenPriceMinus2: price - 2,
+                        };
+                        chart.addData(newData);
+                        chart.data.forEach((item, index) => {
+                            chart.data[index]["lastOpenPrice"] = price;
+                            chart.data[index]["lastOpenPricePlus2"] = price + 2;
+                            chart.data[index]["lastOpenPriceMinus2"] = price - 2;
+                        });
+                    }
+                }
                 chart.data.forEach((item, index) => {
                     chart.data[index]["currentPrice"] = price;
                 });
                 chart.invalidateRawData();
             }
 
-            this.state.ws.onmessage = evt => {
+            this.ws.onmessage = evt => {
                 const price = JSON.parse(evt.data);
                 updateCurrentPrice(price);
             }
-            // setInterval(changeCurrentPrice, 800);
-            this.repeatEvery(() => { addData(this.fetchData) });
+
+            // this.repeatEvery(() => { addData(this.fetchData) });
         });
     }
 
@@ -147,16 +185,25 @@ export default class Data extends Component {
         const year = date.getFullYear();
         const hours = '0' + date.getHours();
         const minutes = "0" + date.getMinutes();
-        return `${year}/${month.substr(-2)}/${day.substr(-2)} ${hours}:${minutes.substr(-2)}`;
+        return `${year}/${month.substr(-2)}/${day.substr(-2)} ${hours.substr(-2)}:${minutes.substr(-2)}`;
     }
 
     formatData = data => {
         const allTimes = Object.keys(data);
-        const length = allTimes.length;
-        if (length < 1)
-            return;
-        const lastOpenPrice = data[allTimes[length - 2]][0];
-        allTimes.pop();
+        let length = allTimes.length;
+        // var ts = Math.round((new Date()).getTime());
+        if (length === 0)
+            return [];
+
+        // if (allTimes[length - 1] === this.convertToMinutes(ts)) {
+        //     allTimes.pop();
+        //     length--;
+        //     if (length === 0)
+        //         return [];
+        // }
+
+        const lastOpenPrice = data[allTimes[length - 1]][0];
+
         return allTimes.map(time => {
             const prices = data[time];
             return {
@@ -168,7 +215,6 @@ export default class Data extends Component {
                 lastOpenPrice,
                 lastOpenPricePlus2: lastOpenPrice + 2,
                 lastOpenPriceMinus2: lastOpenPrice - 2,
-                currentPrice: lastOpenPrice,
             }
         });
     }

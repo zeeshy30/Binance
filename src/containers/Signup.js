@@ -1,24 +1,24 @@
 import React from 'react';
-import { withRouter } from 'react-router-dom';
+import { withRouter, Link } from 'react-router-dom';
 import 'antd/dist/antd.css';
 import Title from 'antd/lib/typography/Title';
 import Text from 'antd/lib/typography/Text';
+import { connect } from "react-redux";
+import { registerUser } from "../actions/AuthActions";
 import { MailOutlined, UserAddOutlined, LockOutlined } from '@ant-design/icons';
 import { Form, Input, Button, Row, Col } from 'antd';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+
+
 
 class Signup extends React.Component {
-    constructor(props) {
-        super(props);
+    componentDidMount() {
+        if (this.props.auth.isAuthenticated) {
+            this.props.history.push("/graph");
+        }
     }
 
     handleSubmit = values => {
-        axios.post('http://localhost:3001/api/register', values).then(res => {
-            this.props.history.push('/login');
-        }).catch(err => {
-            alert(err);
-        })
+        this.props.registerUser(values, this.props.history);
     };
 
     onFinishFailed = errorInfo => {
@@ -26,8 +26,6 @@ class Signup extends React.Component {
     };
 
     renderFirstNameField() {
-        const { form } = this.props;
-
         return (
             <Form.Item hasFeedback
                 name='firstName'
@@ -47,8 +45,6 @@ class Signup extends React.Component {
     }
 
     renderLastNameField() {
-        const { form } = this.props;
-
         return (
             <Form.Item hasFeedback
                 name='lastName'
@@ -68,8 +64,6 @@ class Signup extends React.Component {
     }
 
     renderEmailField() {
-        const { form } = this.props;
-
         return (
             <Form.Item hasFeedback
                 name='email'
@@ -90,8 +84,6 @@ class Signup extends React.Component {
     }
 
     renderPasswordField() {
-        const { form } = this.props;
-
         return (
             <Form.Item hasFeedback
                 name='password1'
@@ -112,8 +104,6 @@ class Signup extends React.Component {
     }
 
     renderPasswordConfirmationField() {
-        const { form } = this.props;
-
         return (
             <Form.Item hasFeedback
                 name='password2'
@@ -175,4 +165,12 @@ class Signup extends React.Component {
     }
 };
 
-export default withRouter(Signup);
+const mapStateToProps = state => ({
+    auth: state.auth,
+    errors: state.errors
+});
+
+export default connect(
+    mapStateToProps,
+    { registerUser }
+)(withRouter(Signup));

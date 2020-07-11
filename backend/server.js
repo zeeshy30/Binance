@@ -1,5 +1,6 @@
 const express = require('express');
 const WebSocket = require('ws');
+const keys = require("./config/keys");
 const bodyParser = require("body-parser");
 const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
@@ -57,7 +58,7 @@ sql.on('error', err => {
 });
 
 
-app.post('/api/register', function (req, res) {
+app.post('/api/users/register', function (req, res) {
     const { firstName, lastName, email, password1 } = req.body;
     bcrypt.hash(password1, 12).then((hash_pass) => {
         executeQuery(`insert into Users Values ('${email}', '${firstName}', '${lastName}', '${hash_pass}')`).then(result => {
@@ -69,44 +70,56 @@ app.post('/api/register', function (req, res) {
     })
 });
 
-app.post('/api/user', function (req, res) {
+app.post('/api/users/login', function (req, res) {
     const { email, password } = req.body;
 
     executeQuery(`SELECT * FROM Users WHERE email='${email}'`)
         .then(result => {
-            const values = result.recordset[0];
+            let values;
+            try {
+                values = result.recordset[0];
+            } catch (err) {
+                res.status(400).json({ message: 'Invalid User' });
+                return;
+            }
             bcrypt.compare(password, values.password)
-                .then(compare_result => {
-                    if (compare_result === true) {
+                .then(isMatched => {
+                    if (isMatched) {
                         const { password, ...rest } = values;
-                        // console.log('signing');
-                        // jwt.sign(
-                        //     payload,
-                        //     keys.secretOrKey,
-                        //     {
-                        //         expiresIn: 86400
-                        //     },
-                        //     (err, token) => {
-                        //         res.status(200).json({
-                        //             success: true,
-                        //             token: "Bearer " + token
-                        //         });
-                        //     }
-                        // );
-                        // console.log('not signewd');
-                        res.send(rest);
+                        try {
+                            jwt.sign(
+                                rest,
+                                keys.secretOrKey,
+                                {
+                                    expiresIn: 86400
+                                },
+                                (err, token) => {
+                                    if (err) {
+                                        res.status(400).json({
+                                            success: false,
+                                            error: err,
+                                        });
+                                    }
+                                    res.json({
+                                        success: true,
+                                        token: "Bearer " + token
+                                    });
+                                }
+                            );
+                        } catch (err) {
+                            res.status(400).json({ err });
+                        }
                     }
                     else {
-                        res.status(400).json({ message: "Invalid Credentials" });
+                        res.status(400).json({ message: "Invalid Password" });
                     }
                 })
                 .catch(err => {
-                    // console.log('heree');
-                    res.status(400).json({ message: "Invalid Credentials" });
+                    console.log(err);
+                    res.status(400).json({ message: err });
                 });
         }).catch(err => {
-            res.status(400).json({ message: "Invalid Credentials" });
-            console.log(err);
+            res.status(400).json({ err });
         })
 });
 
